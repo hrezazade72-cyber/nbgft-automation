@@ -5,7 +5,6 @@ import requests
 from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont
 import arabic_reshaper
-from bidi.algorithm import get_display
 
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 CHANNEL_ID = os.environ["CHANNEL_ID"]  # مثل @nabgofteh یا -100xxxxxxxxxx
@@ -47,10 +46,12 @@ def pick_quote():
 
 
 def shape_farsi(text):
+    """حروف فارسی را به شکل چسبیده (presentation forms) تبدیل می‌کند و سپس
+    کل رشته را برعکس می‌کند تا وقتی PIL آن را چپ‌به‌راست رسم می‌کند،
+    خروجی به‌صورت درست راست‌به‌چپ دیده شود.
+    (این روش ساده برای متن خالص فارسی/عربی بدون عدد یا حروف لاتین مطمئن است.)"""
     reshaped = arabic_reshaper.reshape(text)
-    # base_dir='R' جهت راست‌به‌چپ را صریح مشخص می‌کند تا تشخیص خودکار
-    # جهت اشتباه نکند و متن معکوس چاپ نشود
-    return get_display(reshaped, base_dir="R")
+    return reshaped[::-1]
 
 
 def wrap_farsi(text, font, draw, max_width):
