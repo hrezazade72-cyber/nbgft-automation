@@ -1,0 +1,41 @@
+name: Daily Telegram Post
+
+on:
+  schedule:
+    # اجرای هر روز ساعت 09:00 به وقت تهران (UTC+3:30) -> 05:30 UTC
+    - cron: "30 5 * * *"
+  workflow_dispatch: {}   # اجازه‌ی اجرای دستی از تب Actions برای تست
+
+permissions:
+  contents: write
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Download Persian font
+        run: curl -L -o Vazirmatn-Bold.ttf "https://github.com/rastikerdar/vazirmatn/raw/master/fonts/ttf/Vazirmatn-Bold.ttf"
+
+      - name: Run bot
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
+          CHANNEL_HANDLE: ${{ secrets.CHANNEL_HANDLE }}
+        run: python main.py
+
+      - name: Commit posted history
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add posted.json
+          git commit -m "update posted quotes [skip ci]" || echo "no changes"
+          git push
