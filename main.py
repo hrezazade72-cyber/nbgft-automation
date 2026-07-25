@@ -48,7 +48,9 @@ def pick_quote():
 
 def shape_farsi(text):
     reshaped = arabic_reshaper.reshape(text)
-    return get_display(reshaped)
+    # base_dir='R' جهت راست‌به‌چپ را صریح مشخص می‌کند تا تشخیص خودکار
+    # جهت اشتباه نکند و متن معکوس چاپ نشود
+    return get_display(reshaped, base_dir="R")
 
 
 def wrap_farsi(text, font, draw, max_width):
