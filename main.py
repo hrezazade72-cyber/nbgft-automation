@@ -4,7 +4,6 @@ import random
 import requests
 from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont
-import arabic_reshaper
 
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 CHANNEL_ID = os.environ["CHANNEL_ID"]  # مثل @nabgofteh یا -100xxxxxxxxxx
@@ -45,13 +44,13 @@ def pick_quote():
     return quote
 
 
-def shape_farsi(text):
-    """حروف فارسی را به شکل چسبیده (presentation forms) تبدیل می‌کند و سپس
-    کل رشته را برعکس می‌کند تا وقتی PIL آن را چپ‌به‌راست رسم می‌کند،
-    خروجی به‌صورت درست راست‌به‌چپ دیده شود.
-    (این روش ساده برای متن خالص فارسی/عربی بدون عدد یا حروف لاتین مطمئن است.)"""
-    reshaped = arabic_reshaper.reshape(text)
-    return reshaped[::-1]
+def load_font(size):
+    """فونت را با موتور raqm بارگذاری می‌کند (شکل‌دهی و راست‌به‌چپ فارسی را
+    خودِ Pillow درست انجام می‌دهد). اگر raqm در دسترس نبود، به حالت پایه برمی‌گردد."""
+    try:
+        return ImageFont.truetype(FONT_PATH, size, layout_engine=ImageFont.Layout.RAQM)
+    except Exception:
+        return ImageFont.truetype(FONT_PATH, size)
 
 
 def wrap_farsi(text, font, draw, max_width):
@@ -60,8 +59,7 @@ def wrap_farsi(text, font, draw, max_width):
     current = ""
     for w in words:
         test = (current + " " + w).strip()
-        shaped = shape_farsi(test)
-        bbox = draw.textbbox((0, 0), shaped, font=font)
+        bbox = draw.textbbox((0, 0), test, font=font)
         if bbox[2] - bbox[0] <= max_width:
             current = test
         else:
@@ -104,11 +102,11 @@ def build_image(quote_text):
     font_size = 62
     max_width = img.width - 160
 
-    font = ImageFont.truetype(FONT_PATH, font_size)
+    font = load_font(font_size)
     lines = wrap_farsi(quote_text, font, draw, max_width)
     while len(lines) > 6 and font_size > 30:
         font_size -= 4
-        font = ImageFont.truetype(FONT_PATH, font_size)
+        font = load_font(font_size)
         lines = wrap_farsi(quote_text, font, draw, max_width)
 
     line_height = font_size + 16
@@ -116,15 +114,14 @@ def build_image(quote_text):
     y = (img.height - total_height) // 2
 
     for line in lines:
-        shaped = shape_farsi(line)
-        bbox = draw.textbbox((0, 0), shaped, font=font)
+        bbox = draw.textbbox((0, 0), line, font=font)
         w = bbox[2] - bbox[0]
         x = (img.width - w) // 2
-        draw.text((x, y), shaped, font=font, fill=(255, 255, 255))
+        draw.text((x, y), line, font=font, fill=(255, 255, 255))
         y += line_height
 
-    small_font = ImageFont.truetype(FONT_PATH, 34)
-    tag = shape_farsi("نابگفته")
+    small_font = load_font(34)
+    tag = "نابگفته"
     bbox = draw.textbbox((0, 0), tag, font=small_font)
     draw.text(
         (img.width - bbox[2] - 40, img.height - 70),
@@ -148,6 +145,12 @@ def send_photo(img, caption):
 
 
 def main():
+    try:
+        from PIL import features
+        print("raqm feature available:", features.check_feature("raqm"))
+    except Exception as e:
+        print("could not check raqm feature:", e)
+
     quote = pick_quote()
     img = build_image(quote)
     caption = f"{quote}\n\n📍 {CHANNEL_HANDLE}"
